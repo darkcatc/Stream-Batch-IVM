@@ -127,6 +127,7 @@ logs/
 .env.local
 .env.production
 .env.staging
+.env.generated
 
 # 临时文件
 tmp/

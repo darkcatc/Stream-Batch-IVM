@@ -120,14 +120,19 @@ pip install mysql-connector-python
 ## 目录结构
 
 ```
-├── venv/                  # Python 虚拟环境
-├── scripts/              # Python 脚本目录
-│   ├── data-generator.py  # 数据生成器
-│   └── test-connection.py # 连接测试工具
-├── requirements.txt       # Python 依赖
-├── setup-env.sh          # 环境初始化脚本
-├── activate-env.sh       # 环境激活脚本（自动生成）
-└── .vscode/              # VSCode 配置（自动生成）
+├── venv/                    # Python 虚拟环境
+├── scripts/                 # Python 脚本工具包
+│   ├── __init__.py         # Python 包初始化
+│   ├── config_loader.py     # 统一配置加载器
+│   ├── data-generator.py    # TPC-DS 数据生成器
+│   ├── test-connection.py   # 数据库连接测试
+│   ├── manage-config.py     # 配置管理工具
+│   └── generate-flink-configs.py # Flink 配置生成器
+├── .env                     # 统一配置文件
+├── requirements.txt         # Python 依赖
+├── setup-env.sh            # 环境初始化脚本
+├── activate-env.sh         # 环境激活脚本（自动生成）
+└── .vscode/                # VSCode 配置（自动生成）
     └── settings.json
 ```
 

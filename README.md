@@ -189,6 +189,8 @@ Flink SQL> SOURCE './flink-sql/streaming-analytics.sql';
 ✅ **双路径设计** - 支持直接同步和流式计算  
 ✅ **Python 环境** - 自动化配置和依赖管理  
 ✅ **可扩展设计** - 支持 Cloudberry 直接集成  
+✅ **配置管理** - 统一的 .env 配置系统  
+✅ **工具集成** - 完整的脚本工具包  
 
 ## 技术亮点
 

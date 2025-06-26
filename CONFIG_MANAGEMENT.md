@@ -2,81 +2,76 @@
 
 ## 概述
 
-为了解决硬编码配置问题，项目采用了统一的配置管理系统。所有组件的配置信息都通过环境变量文件进行管理，支持配置验证、模板生成和动态加载。
+为了解决硬编码配置问题，项目采用了统一的配置管理系统。所有组件的配置信息都通过单一 `.env` 文件进行管理，配合脚本工具包提供配置验证、加载和管理功能。
 
-## 配置文件结构
+## 项目结构
 
 ```
-config/
-├── application.env      # 应用程序通用配置
-├── database.env         # 数据库配置（MySQL、Cloudberry）
-├── kafka.env           # 消息队列配置（Kafka、Zookeeper）
-├── flink.env           # Flink流处理引擎配置
-└── config-loader.py    # 配置加载器
+├── .env                 # 统一配置文件
+├── scripts/             # 脚本工具包
+│   ├── __init__.py     # Python 包初始化
+│   ├── config_loader.py # 配置加载器
+│   └── manage-config.py # 配置管理工具
+└── docker-compose.yml  # Docker 服务编排（使用环境变量）
 ```
 
 ## 配置文件说明
 
-### 1. application.env - 应用程序配置
+### .env - 统一配置文件
+
+项目中的所有配置都集中在根目录的 `.env` 文件中，按功能模块组织：
+
 ```bash
+# ========================
 # 项目基础配置
+# ========================
 COMPOSE_PROJECT_NAME=stream-batch-ivm
 NETWORK_NAME=stream-batch-network
+TIMEZONE=Asia/Shanghai
 
-# 数据生成器配置
-DATA_GENERATOR_BATCH_SIZE=1000
-DATA_GENERATOR_INTERVAL=5
-DATA_GENERATOR_MAX_RECORDS=0
-DATA_GENERATOR_THREADS=2
-
-# 日志和监控配置
-LOG_LEVEL=INFO
-HEALTH_CHECK_INTERVAL=30
-MAX_RETRY_ATTEMPTS=3
-```
-
-### 2. database.env - 数据库配置
-```bash
-# MySQL 配置
+# ========================
+# MySQL 数据库配置
+# ========================
 MYSQL_HOST=mysql
 MYSQL_PORT=3306
+MYSQL_EXTERNAL_PORT=3306
+MYSQL_DATABASE=business_db
+MYSQL_ROOT_PASSWORD=root123
 MYSQL_CDC_USER=flink_cdc
 MYSQL_CDC_PASSWORD=flink_cdc123
-MYSQL_DATABASE=business_db
 
-# Cloudberry 配置
-CLOUDBERRY_HOST=cloudberry-host
+# ========================
+# Cloudberry 数据仓库配置
+# ========================
+CLOUDBERRY_HOST=127.0.0.1
 CLOUDBERRY_PORT=15432
-CLOUDBERRY_USER=gpadmin
-CLOUDBERRY_PASSWORD=gpadmin
-CLOUDBERRY_DATABASE=tpcds_db
+CLOUDBERRY_DATABASE=gpadmin
 CLOUDBERRY_SCHEMA=tpcds
-```
+CLOUDBERRY_USER=gpadmin
+CLOUDBERRY_PASSWORD=hashdata@123
+CLOUDBERRY_JDBC_URL=jdbc:postgresql://127.0.0.1:15432/gpadmin
 
-### 3. kafka.env - 消息队列配置
-```bash
-# Kafka 配置
+# ========================
+# Kafka 消息队列配置
+# ========================
 KAFKA_HOST=kafka
 KAFKA_INTERNAL_PORT=29092
 KAFKA_EXTERNAL_PORT=9092
 KAFKA_BROKER_ID=1
+KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
 
-# Zookeeper 配置  
+# ========================
+# Zookeeper 配置
+# ========================
 ZOOKEEPER_HOST=zookeeper
 ZOOKEEPER_PORT=2181
+ZOOKEEPER_TICK_TIME=2000
 
-# Schema Registry 配置
-SCHEMA_REGISTRY_HOST=schema-registry
-SCHEMA_REGISTRY_PORT=8081
-```
-
-### 4. flink.env - Flink配置
-```bash
-# Flink JobManager 配置
+# ========================
+# Flink 流处理引擎配置
+# ========================
 FLINK_JOBMANAGER_HOST=flink-jobmanager
 FLINK_JOBMANAGER_WEB_PORT=8081
-
-# Flink 运行时配置
 FLINK_PARALLELISM_DEFAULT=2
 FLINK_TASKMANAGER_SLOTS=4
 FLINK_CHECKPOINT_INTERVAL=60000
@@ -85,6 +80,22 @@ FLINK_CHECKPOINT_INTERVAL=60000
 FLINK_CDC_SNAPSHOT_MODE=initial
 FLINK_CDC_INCREMENTAL_SNAPSHOT_ENABLED=true
 FLINK_CDC_SNAPSHOT_CHUNK_SIZE=8096
+
+# ========================
+# 数据生成器配置
+# ========================
+DATA_GENERATOR_BATCH_SIZE=1000
+DATA_GENERATOR_INTERVAL=5
+DATA_GENERATOR_MAX_RECORDS=0
+DATA_GENERATOR_THREADS=2
+
+# ========================
+# 监控和工具配置
+# ========================
+AKHQ_HOST=akhq
+AKHQ_PORT=8080
+LOG_LEVEL=INFO
+DEBUG_MODE=false
 ```
 
 ## 配置管理工具
@@ -122,7 +133,7 @@ python scripts/manage-config.py edit database.env
 
 ### 2. 配置加载器API
 ```python
-from config_loader import ConfigLoader
+from scripts.config_loader import ConfigLoader
 
 # 初始化配置加载器
 loader = ConfigLoader()
@@ -163,7 +174,7 @@ KAFKA_EXTERNAL_PORT=${KAFKA_PORT:-9092}
 
 ## Docker Compose集成
 
-Docker Compose文件已经更新为使用配置变量：
+Docker Compose文件已经更新为使用环境变量，直接读取 `.env` 文件：
 
 ```yaml
 services:
@@ -173,9 +184,15 @@ services:
       - "${MYSQL_EXTERNAL_PORT:-3306}:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
-    env_file:
-      - ./config/database.env
-      - ./config/application.env
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-business_db}
+      TZ: ${TIMEZONE:-Asia/Shanghai}
+
+  flink-jobmanager:
+    hostname: ${FLINK_JOBMANAGER_HOST:-flink-jobmanager}
+    ports:
+      - "${FLINK_JOBMANAGER_WEB_PORT:-8081}:8081"
+    environment:
+      JOB_MANAGER_RPC_ADDRESS: ${FLINK_JOBMANAGER_HOST:-flink-jobmanager}
 ```
 
 ## 安全最佳实践

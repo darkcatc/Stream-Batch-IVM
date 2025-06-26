@@ -1,0 +1,119 @@
+version: '3.8'
+
+services:
+  # ========================
+  # MySQL 数据库服务 (继承阶段1)
+  # ========================
+  mysql:
+    image: mysql:8.0
+    hostname: ${MYSQL_HOST:-mysql}
+    container_name: mysql-stage2
+    restart: unless-stopped
+    ports:
+      - "${MYSQL_EXTERNAL_PORT:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-business_db}
+      TZ: ${TIMEZONE:-Asia/Shanghai}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../../mysql-init:/docker-entrypoint-initdb.d
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --binlog-row-image=FULL
+      --gtid-mode=ON
+      --enforce-gtid-consistency=ON
+      --server-id=1
+      --log-slave-updates=ON
+      --binlog-expire-logs-seconds=172800
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root123}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - stage2-network
+
+  # ========================
+  # Flink JobManager
+  # ========================
+  flink-jobmanager:
+    image: flink:1.18
+    hostname: ${FLINK_JOBMANAGER_HOST:-flink-jobmanager}
+    container_name: flink-jobmanager-stage2
+    restart: unless-stopped
+    ports:
+      - "${FLINK_JOBMANAGER_WEB_PORT:-8081}:8081"
+      - "6123:6123"
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: ${FLINK_TASKMANAGER_SLOTS:-4}
+        parallelism.default: ${FLINK_PARALLELISM_DEFAULT:-2}
+        jobmanager.execution.failover-strategy: region
+        taskmanager.memory.process.size: ${FLINK_TASKMANAGER_MEMORY_PROCESS_SIZE:-2g}
+        taskmanager.memory.flink.size: ${FLINK_TASKMANAGER_MEMORY_FLINK_SIZE:-1.5g}
+        state.backend: ${FLINK_STATE_BACKEND:-rocksdb}
+        state.checkpoints.dir: ${FLINK_CHECKPOINT_DIR:-file:///tmp/flink-checkpoints}
+        state.savepoints.dir: ${FLINK_SAVEPOINT_DIR:-file:///tmp/flink-savepoints}
+        execution.checkpointing.interval: ${FLINK_CHECKPOINT_INTERVAL:-60000}
+        execution.checkpointing.externalized-checkpoint-retention: ${FLINK_CHECKPOINT_RETENTION:-RETAIN_ON_CANCELLATION}
+    command: jobmanager
+    volumes:
+      - flink_data:/tmp
+      - ../../flink-lib:/opt/flink/lib/custom
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - stage2-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # ========================
+  # Flink TaskManager
+  # ========================
+  flink-taskmanager:
+    image: flink:1.18
+    hostname: flink-taskmanager
+    container_name: flink-taskmanager-stage2
+    restart: unless-stopped
+    scale: ${FLINK_TASKMANAGER_SCALE:-2}
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: ${FLINK_TASKMANAGER_SLOTS:-4}
+        parallelism.default: ${FLINK_PARALLELISM_DEFAULT:-2}
+        taskmanager.memory.process.size: ${FLINK_TASKMANAGER_MEMORY_PROCESS_SIZE:-2g}
+        taskmanager.memory.flink.size: ${FLINK_TASKMANAGER_MEMORY_FLINK_SIZE:-1.5g}
+        state.backend: ${FLINK_STATE_BACKEND:-rocksdb}
+    command: taskmanager
+    volumes:
+      - flink_data:/tmp
+      - ../../flink-lib:/opt/flink/lib/custom
+    networks:
+      - stage2-network
+    depends_on:
+      - flink-jobmanager
+
+networks:
+  stage2-network:
+    name: ${NETWORK_NAME:-stream-batch-network}-stage2
+    driver: bridge
+
+volumes:
+  mysql_data:
+    name: mysql-data-stage2
+  flink_data:
+    name: flink-data-stage2 

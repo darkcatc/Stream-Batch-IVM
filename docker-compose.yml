@@ -1,23 +1,18 @@
-version: '3.8'
-
 services:
   # ===========================================
   # Zookeeper 服务 - Kafka 的协调者
   # ===========================================
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
-    hostname: ${ZOOKEEPER_HOST:-zookeeper}
+    hostname: ${ZOOKEEPER_HOST}
     container_name: zookeeper
     ports:
-      - "${ZOOKEEPER_PORT:-2181}:2181"
+      - "${ZOOKEEPER_PORT}:2181"
     environment:
-      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_PORT:-2181}
-      ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME:-2000}
-    env_file:
-      - ./config/kafka.env
-      - ./config/application.env
+      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_PORT}
+      ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME}
     networks:
-      - ${NETWORK_NAME:-stream-batch-network}
+      - ${NETWORK_NAME}
     restart: unless-stopped
 
   # ===========================================
@@ -25,30 +20,27 @@ services:
   # ===========================================
   kafka:
     image: confluentinc/cp-kafka:7.4.0
-    hostname: ${KAFKA_HOST:-kafka}
+    hostname: ${KAFKA_HOST}
     container_name: kafka
     depends_on:
       - zookeeper
     ports:
-      - "${KAFKA_EXTERNAL_PORT:-9092}:9092"
-      - "${KAFKA_JMX_PORT:-9101}:9101"
+      - "${KAFKA_EXTERNAL_PORT}:9092"
+      - "${KAFKA_JMX_PORT}:9101"
     environment:
-      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID:-1}
-      KAFKA_ZOOKEEPER_CONNECT: '${ZOOKEEPER_HOST:-zookeeper}:${ZOOKEEPER_PORT:-2181}'
+      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID}
+      KAFKA_ZOOKEEPER_CONNECT: '${ZOOKEEPER_HOST}:${ZOOKEEPER_PORT}'
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${KAFKA_HOST:-kafka}:${KAFKA_INTERNAL_PORT:-29092},PLAINTEXT_HOST://localhost:${KAFKA_EXTERNAL_PORT:-9092}
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR:-1}
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: ${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR:-1}
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: ${KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR:-1}
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: ${KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS:-0}
-      KAFKA_JMX_PORT: ${KAFKA_JMX_PORT:-9101}
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${KAFKA_HOST}:${KAFKA_INTERNAL_PORT},PLAINTEXT_HOST://localhost:${KAFKA_EXTERNAL_PORT}
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR}
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: ${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR}
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: ${KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR}
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: ${KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS}
+      KAFKA_JMX_PORT: ${KAFKA_JMX_PORT}
       KAFKA_JMX_HOSTNAME: localhost
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: '${KAFKA_AUTO_CREATE_TOPICS_ENABLE:-true}'
-    env_file:
-      - ./config/kafka.env
-      - ./config/application.env
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: '${KAFKA_AUTO_CREATE_TOPICS_ENABLE}'
     networks:
-      - ${NETWORK_NAME:-stream-batch-network}
+      - ${NETWORK_NAME}
     restart: unless-stopped
 
   # ===========================================
@@ -56,15 +48,15 @@ services:
   # ===========================================
   mysql:
     image: mysql:8.0
-    hostname: ${MYSQL_HOST:-mysql}
+    hostname: ${MYSQL_HOST}
     container_name: mysql
     ports:
-      - "${MYSQL_EXTERNAL_PORT:-3306}:3306"
+      - "${MYSQL_EXTERNAL_PORT}:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-business_db}
-      MYSQL_USER: ${MYSQL_CDC_USER:-flink_cdc}
-      MYSQL_PASSWORD: ${MYSQL_CDC_PASSWORD:-flink_cdc123}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_CDC_USER}
+      MYSQL_PASSWORD: ${MYSQL_CDC_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
       - ./mysql-init:/docker-entrypoint-initdb.d
@@ -74,14 +66,11 @@ services:
       - --binlog-format=row
       - --binlog-row-image=full
       - --expire-logs-days=10
-      - --binlog-do-db=${MYSQL_DATABASE:-business_db}
+      - --binlog-do-db=${MYSQL_DATABASE}
       - --gtid-mode=on
       - --enforce-gtid-consistency=on
-    env_file:
-      - ./config/database.env
-      - ./config/application.env
     networks:
-      - ${NETWORK_NAME:-stream-batch-network}
+      - ${NETWORK_NAME}
     restart: unless-stopped
 
   # ===========================================
@@ -90,31 +79,28 @@ services:
   # ===========================================
   flink-jobmanager:
     image: flink:1.18.0-scala_2.12
-    hostname: ${FLINK_JOBMANAGER_HOST:-flink-jobmanager}
+    hostname: ${FLINK_JOBMANAGER_HOST}
     container_name: flink-jobmanager
     ports:
-      - "${FLINK_JOBMANAGER_WEB_PORT:-8081}:8081"
+      - "${FLINK_JOBMANAGER_WEB_PORT}:8081"
     command: jobmanager
     environment:
       - |
         FLINK_PROPERTIES=
-        jobmanager.rpc.address: ${FLINK_JOBMANAGER_HOST:-flink-jobmanager}
-        taskmanager.numberOfTaskSlots: ${FLINK_TASKMANAGER_SLOTS:-4}
-        parallelism.default: ${FLINK_PARALLELISM_DEFAULT:-2}
-        state.backend: ${FLINK_STATE_BACKEND:-rocksdb}
-        state.checkpoints.dir: ${FLINK_CHECKPOINT_DIR:-file:///tmp/flink-checkpoints}
-        state.savepoints.dir: ${FLINK_SAVEPOINT_DIR:-file:///tmp/flink-savepoints}
-        execution.checkpointing.interval: ${FLINK_CHECKPOINT_INTERVAL:-60000}
-        execution.checkpointing.externalized-checkpoint-retention: ${FLINK_CHECKPOINT_RETENTION:-RETAIN_ON_CANCELLATION}
+        jobmanager.rpc.address: ${FLINK_JOBMANAGER_HOST}
+        taskmanager.numberOfTaskSlots: ${FLINK_TASKMANAGER_SLOTS}
+        parallelism.default: ${FLINK_PARALLELISM_DEFAULT}
+        state.backend: ${FLINK_STATE_BACKEND}
+        state.checkpoints.dir: ${FLINK_CHECKPOINT_DIR}
+        state.savepoints.dir: ${FLINK_SAVEPOINT_DIR}
+        execution.checkpointing.interval: ${FLINK_CHECKPOINT_INTERVAL}
+        execution.checkpointing.externalized-checkpoint-retention: ${FLINK_CHECKPOINT_RETENTION}
     volumes:
       - flink_data:/tmp/flink-checkpoints
       - flink_savepoints:/tmp/flink-savepoints
       - ./flink-lib:/opt/flink/lib/custom
-    env_file:
-      - ./config/flink.env
-      - ./config/application.env
     networks:
-      - ${NETWORK_NAME:-stream-batch-network}
+      - ${NETWORK_NAME}
     restart: unless-stopped
 
   # ===========================================
@@ -122,28 +108,23 @@ services:
   # ===========================================
   flink-taskmanager:
     image: flink:1.18.0-scala_2.12
-    hostname: flink-taskmanager
-    container_name: flink-taskmanager
     depends_on:
       - flink-jobmanager
     command: taskmanager
-    scale: ${FLINK_TASKMANAGER_SCALE:-2}
+    scale: ${FLINK_TASKMANAGER_SCALE}
     environment:
       - |
         FLINK_PROPERTIES=
-        jobmanager.rpc.address: ${FLINK_JOBMANAGER_HOST:-flink-jobmanager}
-        taskmanager.numberOfTaskSlots: ${FLINK_TASKMANAGER_SLOTS:-4}
-        parallelism.default: ${FLINK_PARALLELISM_DEFAULT:-2}
-        state.backend: ${FLINK_STATE_BACKEND:-rocksdb}
-        taskmanager.memory.process.size: ${FLINK_TASKMANAGER_MEMORY_PROCESS_SIZE:-2g}
-        taskmanager.memory.flink.size: ${FLINK_TASKMANAGER_MEMORY_FLINK_SIZE:-1.5g}
+        jobmanager.rpc.address: ${FLINK_JOBMANAGER_HOST}
+        taskmanager.numberOfTaskSlots: ${FLINK_TASKMANAGER_SLOTS}
+        parallelism.default: ${FLINK_PARALLELISM_DEFAULT}
+        state.backend: ${FLINK_STATE_BACKEND}
+        taskmanager.memory.process.size: ${FLINK_TASKMANAGER_MEMORY_PROCESS_SIZE}
+        taskmanager.memory.flink.size: ${FLINK_TASKMANAGER_MEMORY_FLINK_SIZE}
     volumes:
       - ./flink-lib:/opt/flink/lib/custom
-    env_file:
-      - ./config/flink.env
-      - ./config/application.env
     networks:
-      - ${NETWORK_NAME:-stream-batch-network}
+      - ${NETWORK_NAME}
     restart: unless-stopped
 
   # ===========================================
@@ -151,26 +132,23 @@ services:
   # ===========================================
   akhq:
     image: tchiotludo/akhq:0.24.0
-    hostname: ${AKHQ_HOST:-akhq}
+    hostname: ${AKHQ_HOST}
     container_name: akhq
     depends_on:
       - kafka
     ports:
-      - "${AKHQ_PORT:-8080}:8080"
+      - "${AKHQ_PORT}:8080"
     environment:
       AKHQ_CONFIGURATION: |
         akhq:
           connections:
             docker-kafka-server:
               properties:
-                bootstrap.servers: "${KAFKA_HOST:-kafka}:${KAFKA_INTERNAL_PORT:-29092}"
+                bootstrap.servers: "${KAFKA_HOST}:${KAFKA_INTERNAL_PORT}"
               schema-registry:
-                url: "http://${SCHEMA_REGISTRY_HOST:-schema-registry}:${SCHEMA_REGISTRY_PORT:-8081}"
-    env_file:
-      - ./config/kafka.env
-      - ./config/application.env
+                url: "http://${SCHEMA_REGISTRY_HOST}:${SCHEMA_REGISTRY_PORT}"
     networks:
-      - ${NETWORK_NAME:-stream-batch-network}
+      - ${NETWORK_NAME}
     restart: unless-stopped
 
   # ===========================================
@@ -178,21 +156,18 @@ services:
   # ===========================================
   schema-registry:
     image: confluentinc/cp-schema-registry:7.4.0
-    hostname: ${SCHEMA_REGISTRY_HOST:-schema-registry}
+    hostname: ${SCHEMA_REGISTRY_HOST}
     container_name: schema-registry
     depends_on:
       - kafka
     ports:
-      - "${SCHEMA_REGISTRY_EXTERNAL_PORT:-8082}:8081"
+      - "${SCHEMA_REGISTRY_EXTERNAL_PORT}:8081"
     environment:
-      SCHEMA_REGISTRY_HOST_NAME: ${SCHEMA_REGISTRY_HOST:-schema-registry}
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: '${KAFKA_HOST:-kafka}:${KAFKA_INTERNAL_PORT:-29092}'
-      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:${SCHEMA_REGISTRY_PORT:-8081}
-    env_file:
-      - ./config/kafka.env
-      - ./config/application.env
+      SCHEMA_REGISTRY_HOST_NAME: ${SCHEMA_REGISTRY_HOST}
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: '${KAFKA_HOST}:${KAFKA_INTERNAL_PORT}'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:${SCHEMA_REGISTRY_PORT}
     networks:
-      - ${NETWORK_NAME:-stream-batch-network}
+      - ${NETWORK_NAME}
     restart: unless-stopped
 
   # ===========================================
@@ -219,7 +194,7 @@ services:
         echo 'Flink CDC 连接器初始化完成'
       "
     networks:
-      - stream-batch-network
+      - ${NETWORK_NAME}
 
 # ===========================================
 # 数据卷配置
@@ -237,5 +212,5 @@ volumes:
 # ===========================================
 networks:
   stream-batch-network:
-    name: ${NETWORK_NAME:-stream-batch-network}
+    name: ${NETWORK_NAME}
     driver: bridge 

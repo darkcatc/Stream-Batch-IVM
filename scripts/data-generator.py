@@ -21,15 +21,12 @@ from pathlib import Path
 # 加载配置
 def load_db_config():
     """加载数据库配置"""
-    # 添加config目录到Python路径
-    config_dir = Path(__file__).parent.parent / "config"
-    sys.path.append(str(config_dir))
-    
     try:
+        # 导入配置加载器
         from config_loader import ConfigLoader
         loader = ConfigLoader()
         mysql_config = loader.get_connection_params('mysql')
-        app_config = loader.load_all_configs()
+        generator_config = loader.get_data_generator_config()
         
         return {
             'db': {
@@ -39,12 +36,7 @@ def load_db_config():
                 'password': mysql_config.get('password', 'flink_cdc123'),
                 'database': mysql_config.get('database', 'business_db')
             },
-            'generator': {
-                'batch_size': int(app_config.get('DATA_GENERATOR_BATCH_SIZE', 1000)),
-                'interval': int(app_config.get('DATA_GENERATOR_INTERVAL', 5)),
-                'max_records': int(app_config.get('DATA_GENERATOR_MAX_RECORDS', 0)),
-                'threads': int(app_config.get('DATA_GENERATOR_THREADS', 2))
-            }
+            'generator': generator_config
         }
     except ImportError:
         # 如果配置加载器不可用，使用环境变量或默认配置
