@@ -8,7 +8,8 @@
 
 ## 架构设计
 
-```![alt text](arch.png)
+![alt text](arch.png)
+```
 # 双路径架构：
 路径1: MySQL → Flink CDC → Kafka → Flink 流式计算 → Cloudberry
 路径2: MySQL → Flink CDC → Cloudberry（直接同步）
