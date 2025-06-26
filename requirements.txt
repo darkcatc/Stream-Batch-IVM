@@ -1,0 +1,10 @@
+# TPC-DS 流批一体处理 Demo 依赖包
+# 作者：Vance Chen
+
+# MySQL 数据库连接器
+mysql-connector-python==8.2.0
+
+# 其他可能需要的依赖
+# pandas==2.1.4          # 数据处理（如果需要更复杂的数据操作）
+# numpy==1.24.4           # 数值计算
+# faker==20.1.0           # 生成模拟数据（如果需要更真实的测试数据） 

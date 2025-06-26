@@ -1,0 +1,220 @@
+version: '3.8'
+
+services:
+  # ===========================================
+  # Zookeeper 服务 - Kafka 的协调者
+  # ===========================================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - stream-batch-network
+    restart: unless-stopped
+
+  # ===========================================
+  # Kafka 服务 - 事件总线（用于流式计算场景）
+  # ===========================================
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    hostname: kafka
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    networks:
+      - stream-batch-network
+    restart: unless-stopped
+
+  # ===========================================
+  # MySQL 服务 - 业务交易数据库
+  # ===========================================
+  mysql:
+    image: mysql:8.0
+    hostname: mysql
+    container_name: mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: business_db
+      MYSQL_USER: flink_cdc
+      MYSQL_PASSWORD: flink_cdc123
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d
+    command:
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-format=row
+      - --binlog-row-image=full
+      - --expire-logs-days=10
+      - --binlog-do-db=business_db
+      - --gtid-mode=on
+      - --enforce-gtid-consistency=on
+    networks:
+      - stream-batch-network
+    restart: unless-stopped
+
+  # ===========================================
+  # Flink JobManager 服务 - 流处理作业管理器
+  # 支持 Flink CDC 连接器
+  # ===========================================
+  flink-jobmanager:
+    image: flink:1.18.0-scala_2.12
+    hostname: flink-jobmanager
+    container_name: flink-jobmanager
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        parallelism.default: 2
+        state.backend: rocksdb
+        state.checkpoints.dir: file:///tmp/flink-checkpoints
+        state.savepoints.dir: file:///tmp/flink-savepoints
+        execution.checkpointing.interval: 60000
+        execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+    volumes:
+      - flink_data:/tmp/flink-checkpoints
+      - flink_savepoints:/tmp/flink-savepoints
+      - ./flink-lib:/opt/flink/lib/custom
+    networks:
+      - stream-batch-network
+    restart: unless-stopped
+
+  # ===========================================
+  # Flink TaskManager 服务 - 流处理任务执行器
+  # ===========================================
+  flink-taskmanager:
+    image: flink:1.18.0-scala_2.12
+    hostname: flink-taskmanager
+    container_name: flink-taskmanager
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    scale: 2
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        parallelism.default: 2
+        state.backend: rocksdb
+        taskmanager.memory.process.size: 2g
+        taskmanager.memory.flink.size: 1.5g
+    volumes:
+      - ./flink-lib:/opt/flink/lib/custom
+    networks:
+      - stream-batch-network
+    restart: unless-stopped
+
+  # ===========================================
+  # AKHQ 服务 - Kafka UI 管理工具
+  # ===========================================
+  akhq:
+    image: tchiotludo/akhq:0.24.0
+    hostname: akhq
+    container_name: akhq
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            docker-kafka-server:
+              properties:
+                bootstrap.servers: "kafka:29092"
+              schema-registry:
+                url: "http://schema-registry:8081"
+    networks:
+      - stream-batch-network
+    restart: unless-stopped
+
+  # ===========================================
+  # Schema Registry 服务 - 模式注册表
+  # ===========================================
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.4.0
+    hostname: schema-registry
+    container_name: schema-registry
+    depends_on:
+      - kafka
+    ports:
+      - "8082:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:29092'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    networks:
+      - stream-batch-network
+    restart: unless-stopped
+
+  # ===========================================
+  # Flink CDC 初始化服务 - 下载必要的 JAR 包
+  # ===========================================
+  flink-cdc-init:
+    image: alpine:latest
+    container_name: flink-cdc-init
+    volumes:
+      - ./flink-lib:/flink-lib
+    command: |
+      sh -c "
+        apk add --no-cache wget &&
+        mkdir -p /flink-lib &&
+        echo '下载 Flink CDC MySQL 连接器...' &&
+        wget -O /flink-lib/flink-sql-connector-mysql-cdc-2.4.2.jar 'https://repo1.maven.org/maven2/com/ververica/flink-sql-connector-mysql-cdc/2.4.2/flink-sql-connector-mysql-cdc-2.4.2.jar' ||
+        echo '请手动下载 flink-sql-connector-mysql-cdc-2.4.2.jar 到 ./flink-lib/ 目录' &&
+        echo '下载 Flink Kafka 连接器...' &&
+        wget -O /flink-lib/flink-sql-connector-kafka-1.18.0.jar 'https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka/1.18.0/flink-sql-connector-kafka-1.18.0.jar' ||
+        echo '请手动下载 flink-sql-connector-kafka-1.18.0.jar 到 ./flink-lib/ 目录' &&
+        echo '下载 MySQL JDBC 驱动...' &&
+        wget -O /flink-lib/mysql-connector-java-8.0.33.jar 'https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.33/mysql-connector-java-8.0.33.jar' ||
+        echo '请手动下载 mysql-connector-java-8.0.33.jar 到 ./flink-lib/ 目录' &&
+        echo 'Flink CDC 连接器初始化完成'
+      "
+    networks:
+      - stream-batch-network
+
+# ===========================================
+# 数据卷配置
+# ===========================================
+volumes:
+  mysql_data:
+    driver: local
+  flink_data:
+    driver: local
+  flink_savepoints:
+    driver: local
+
+# ===========================================
+# 网络配置 - 确保所有服务在同一网络中
+# ===========================================
+networks:
+  stream-batch-network:
+    driver: bridge
+    name: stream-batch-network 
