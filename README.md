@@ -59,12 +59,36 @@
 - 关联原始销售票据
 - 支持退货金额、税费计算
 
-## 快速开始
+## ⚡ 5分钟快速启动
+
+```bash
+# 1. 启动 Docker 环境
+./start-demo.sh
+
+# 2. 配置 Python 环境
+./setup-env.sh
+
+# 3. 激活虚拟环境
+source venv/bin/activate
+
+# 4. 测试连接
+python scripts/test-connection.py
+
+# 5. 启动数据生成器
+python scripts/data-generator.py
+```
+
+🎉 **完成！** 现在可以访问：
+- **Flink Dashboard**: http://localhost:8081
+- **Kafka UI (AKHQ)**: http://localhost:8080
+
+## 详细配置
 
 ### 1. 环境要求
 - Docker & Docker Compose
-- Python 3.8+ (可选，用于数据生成)
+- Python 3.8+ (用于数据生成)
 - 8GB+ 内存推荐
+- Ubuntu/Debian 系统 (推荐)
 
 ### 2. 启动环境
 ```bash
@@ -72,19 +96,69 @@
 ./start-demo.sh
 ```
 
-### 3. 验证环境
+### 3. 配置 Python 环境
+```bash
+# 自动初始化 Python 环境（推荐）
+./setup-env.sh
+
+# 或手动配置
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 4. 验证环境
 - **AKHQ UI**: http://localhost:8080
 - **Flink Dashboard**: http://localhost:8081
-- **Kafka Connect API**: http://localhost:8083
+- **Schema Registry**: http://localhost:8082
 
-### 4. 数据生成
+### 5. 测试数据库连接
 ```bash
-# 安装 Python 依赖
-pip install -r requirements.txt
+# 激活Python环境
+source venv/bin/activate
 
-# 启动数据生成器
-python3 scripts/data-generator.py
+# 测试MySQL连接
+python scripts/test-connection.py
 ```
+
+### 6. 配置 Flink CDC 作业
+```bash
+# 进入 Flink SQL Client
+docker exec -it flink-jobmanager ./bin/sql-client.sh
+
+# 执行 CDC 同步作业
+SOURCE './flink-sql/mysql-cdc-to-kafka.sql';
+SOURCE './flink-sql/streaming-analytics.sql';
+```
+
+### 7. 启动数据生成器
+```bash
+# 激活环境并启动数据生成器
+source venv/bin/activate
+python3 scripts/data-generator.py
+
+# 自定义参数示例
+python3 scripts/data-generator.py --sales-interval 1 --return-probability 0.2
+```
+
+## 🚀 下一步操作
+
+### 配置 Flink CDC 同步
+```bash
+# 1. 进入 Flink SQL Client
+docker exec -it flink-jobmanager ./bin/sql-client.sh
+
+# 2. 执行 SQL 脚本创建 CDC 任务
+Flink SQL> SOURCE './flink-sql/mysql-cdc-to-kafka.sql';
+
+# 3. 启动流式分析任务
+Flink SQL> SOURCE './flink-sql/streaming-analytics.sql';
+```
+
+### 验证数据流
+1. **查看 Flink 作业**: http://localhost:8081 确认作业运行状态
+2. **监控 Kafka Topics**: http://localhost:8080 查看数据流
+3. **观察实时指标**: 查看 `tpcds.sales_metrics`、`tpcds.alerts` 等 Topic
 
 ## 使用场景
 
@@ -112,6 +186,8 @@ python3 scripts/data-generator.py
 ✅ **实时同步** - 毫秒级 CDC 延迟  
 ✅ **可视化监控** - 完整的 UI 界面  
 ✅ **容器化部署** - 一键启动环境  
+✅ **双路径设计** - 支持直接同步和流式计算  
+✅ **Python 环境** - 自动化配置和依赖管理  
 ✅ **可扩展设计** - 支持 Cloudberry 直接集成  
 
 ## 技术亮点
@@ -147,13 +223,78 @@ python3 scripts/data-generator.py
 - [ ] 性能基准测试报告
 - [ ] 增量视图物化实现
 
+## 项目文件结构
+
+```
+├── docker-compose.yml           # Docker 服务编排
+├── start-demo.sh               # 一键启动脚本
+├── setup-env.sh                # Python 环境初始化
+├── requirements.txt            # Python 依赖
+├── PYTHON_ENV_SETUP.md         # Python 环境配置指南
+├── scripts/                    # Python 脚本目录
+│   ├── data-generator.py       # TPC-DS 数据生成器
+│   └── test-connection.py      # MySQL 连接测试
+├── flink-sql/                  # Flink SQL 脚本
+│   ├── mysql-cdc-to-kafka.sql  # MySQL CDC 到 Kafka
+│   ├── mysql-cdc-to-cloudberry.sql # MySQL CDC 到 Cloudberry
+│   └── streaming-analytics.sql # 实时流式分析
+├── mysql-init/                 # MySQL 初始化脚本
+│   └── 01-init-tpcds-tables.sql
+└── flink-lib/                  # Flink 连接器 JAR 包（自动下载）
+```
+
+## 数据生成器参数
+
+| 参数 | 默认值 | 描述 |
+|------|--------|------|
+| `--host` | localhost | MySQL 主机地址 |
+| `--port` | 3306 | MySQL 端口 |
+| `--user` | root | MySQL 用户名 |
+| `--password` | root123 | MySQL 密码 |
+| `--database` | business_db | 数据库名称 |
+| `--sales-interval` | 2 | 销售数据生成间隔（秒） |
+| `--return-probability` | 0.1 | 退货概率（0-1） |
+
+### 使用示例
+
+```bash
+# 快速生成大量数据
+python3 scripts/data-generator.py --sales-interval 0.5 --return-probability 0.15
+
+# 低频生成，适合演示
+python3 scripts/data-generator.py --sales-interval 5 --return-probability 0.05
+```
+
 ## 故障排除
 
 ### 常见问题
-1. **MySQL 连接失败** - 检查容器状态和端口映射
-2. **Flink CDC 作业失败** - 验证 binlog 配置和用户权限
-3. **Kafka Topic 无数据** - 确认 Flink CDC 作业运行状态
-4. **JAR 包缺失** - 检查 ./flink-lib/ 目录中的连接器文件
+
+#### 1. Python 环境问题
+**错误**: `The virtual environment was not created successfully`
+```bash
+# 解决方案
+sudo apt install python3.12-venv python3-pip
+```
+
+#### 2. MySQL 连接失败
+**错误**: `Can't connect to MySQL server`
+```bash
+# 检查步骤
+./start-demo.sh                    # 确保 Docker 服务已启动
+python3 scripts/test-connection.py # 测试连接
+docker ps | grep mysql             # 检查 MySQL 容器状态
+```
+
+#### 3. Flink CDC 作业失败
+**错误**: 作业提交失败或数据不同步
+- 验证 binlog 配置和用户权限
+- 检查 ./flink-lib/ 目录中的连接器文件
+- 确认 Flink CDC 作业运行状态
+
+#### 4. Kafka Topic 无数据
+- 确认 Flink CDC 作业已正确提交
+- 在 AKHQ 中检查 Topic 创建情况
+- 验证数据生成器是否正常运行
 
 ### 日志查看
 ```bash
@@ -172,6 +313,18 @@ docker-compose ps
 # 进入 Flink SQL Client
 docker exec -it flink-jobmanager ./bin/sql-client.sh
 ```
+
+## 性能调优建议
+
+### Flink 配置优化
+- 调整 TaskManager 内存：`taskmanager.memory.process.size`
+- 优化并行度：`parallelism.default`
+- 配置检查点间隔：`execution.checkpointing.interval`
+
+### 数据生成器优化
+- 高吞吐量：减少 `--sales-interval` 到 0.1-0.5 秒
+- 低延迟测试：增加 `--return-probability` 到 0.3-0.5
+- 批量数据：运行多个数据生成器实例
 
 ## 贡献指南
 

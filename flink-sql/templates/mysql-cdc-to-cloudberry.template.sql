@@ -7,7 +7,7 @@
 
 -- 设置 Flink SQL 环境
 SET 'execution.runtime-mode' = 'streaming';
-SET 'execution.checkpointing.interval' = '60000ms';
+SET 'execution.checkpointing.interval' = '${FLINK_CHECKPOINT_INTERVAL}ms';
 SET 'table.exec.source.idle-timeout' = '30s';
 SET 'table.exec.sink.not-null-enforcer' = 'drop';
 
@@ -44,16 +44,16 @@ CREATE TABLE mysql_source_store_sales (
     PRIMARY KEY (id) NOT ENFORCED
 ) WITH (
     'connector' = 'mysql-cdc',
-    'hostname' = 'mysql',
-    'port' = '3306',
-    'username' = 'flink_cdc',
-    'password' = 'flink_cdc123',
-    'database-name' = 'business_db',
+    'hostname' = '${MYSQL_HOST}',
+    'port' = '${MYSQL_PORT}',
+    'username' = '${MYSQL_CDC_USER}',
+    'password' = '${MYSQL_CDC_PASSWORD}',
+    'database-name' = '${MYSQL_DATABASE}',
     'table-name' = 'store_sales',
-    'server-time-zone' = 'Asia/Shanghai',
-    'scan.incremental.snapshot.enabled' = 'true',
-    'scan.incremental.snapshot.chunk.size' = '8096',
-    'debezium.snapshot.mode' = 'initial'
+    'server-time-zone' = '${TIMEZONE}',
+    'scan.incremental.snapshot.enabled' = '${FLINK_CDC_INCREMENTAL_SNAPSHOT_ENABLED}',
+    'scan.incremental.snapshot.chunk.size' = '${FLINK_CDC_SNAPSHOT_CHUNK_SIZE}',
+    'debezium.snapshot.mode' = '${FLINK_CDC_SNAPSHOT_MODE}'
 );
 
 -- =============================================
@@ -86,16 +86,16 @@ CREATE TABLE mysql_source_store_returns (
     PRIMARY KEY (id) NOT ENFORCED
 ) WITH (
     'connector' = 'mysql-cdc',
-    'hostname' = 'mysql',
-    'port' = '3306',
-    'username' = 'flink_cdc',
-    'password' = 'flink_cdc123',
-    'database-name' = 'business_db',
+    'hostname' = '${MYSQL_HOST}',
+    'port' = '${MYSQL_PORT}',
+    'username' = '${MYSQL_CDC_USER}',
+    'password' = '${MYSQL_CDC_PASSWORD}',
+    'database-name' = '${MYSQL_DATABASE}',
     'table-name' = 'store_returns',
-    'server-time-zone' = 'Asia/Shanghai',
-    'scan.incremental.snapshot.enabled' = 'true',
-    'scan.incremental.snapshot.chunk.size' = '8096',
-    'debezium.snapshot.mode' = 'initial'
+    'server-time-zone' = '${TIMEZONE}',
+    'scan.incremental.snapshot.enabled' = '${FLINK_CDC_INCREMENTAL_SNAPSHOT_ENABLED}',
+    'scan.incremental.snapshot.chunk.size' = '${FLINK_CDC_SNAPSHOT_CHUNK_SIZE}',
+    'debezium.snapshot.mode' = '${FLINK_CDC_SNAPSHOT_MODE}'
 );
 
 -- =============================================
@@ -128,15 +128,15 @@ CREATE TABLE cloudberry_store_sales (
     ss_net_profit DECIMAL(7,2)
 ) WITH (
     'connector' = 'jdbc',
-    'url' = 'jdbc:postgresql://127.0.0.1:15432/gpadmin',
-    'table-name' = 'tpcds.store_sales_heap',
-    'username' = 'gpadmin',
-    'password' = 'hashdata@123',
+    'url' = '${CLOUDBERRY_JDBC_URL}',
+    'table-name' = '${CLOUDBERRY_SCHEMA}.store_sales_heap',
+    'username' = '${CLOUDBERRY_USER}',
+    'password' = '${CLOUDBERRY_PASSWORD}',
     'driver' = 'org.postgresql.Driver',
-    'sink.buffer-flush.max-rows' = '1000',
-    'sink.buffer-flush.interval' = '2s',
-    'sink.max-retries' = '3',
-    'sink.parallelism' = '4'
+    'sink.buffer-flush.max-rows' = '${FLINK_JDBC_BUFFER_FLUSH_MAX_ROWS}',
+    'sink.buffer-flush.interval' = '${FLINK_JDBC_BUFFER_FLUSH_INTERVAL}',
+    'sink.max-retries' = '${FLINK_JDBC_MAX_RETRIES}',
+    'sink.parallelism' = '${FLINK_JDBC_SINK_PARALLELISM}'
 );
 
 -- =============================================
@@ -165,15 +165,15 @@ CREATE TABLE cloudberry_store_returns (
     sr_net_loss DECIMAL(7,2)
 ) WITH (
     'connector' = 'jdbc',
-    'url' = 'jdbc:postgresql://127.0.0.1:15432/gpadmin',
-    'table-name' = 'tpcds.store_returns_heap',
-    'username' = 'gpadmin',
-    'password' = 'hashdata@123',
+    'url' = '${CLOUDBERRY_JDBC_URL}',
+    'table-name' = '${CLOUDBERRY_SCHEMA}.store_returns_heap',
+    'username' = '${CLOUDBERRY_USER}',
+    'password' = '${CLOUDBERRY_PASSWORD}',
     'driver' = 'org.postgresql.Driver',
-    'sink.buffer-flush.max-rows' = '1000',
-    'sink.buffer-flush.interval' = '2s',
-    'sink.max-retries' = '3',
-    'sink.parallelism' = '4'
+    'sink.buffer-flush.max-rows' = '${FLINK_JDBC_BUFFER_FLUSH_MAX_ROWS}',
+    'sink.buffer-flush.interval' = '${FLINK_JDBC_BUFFER_FLUSH_INTERVAL}',
+    'sink.max-retries' = '${FLINK_JDBC_MAX_RETRIES}',
+    'sink.parallelism' = '${FLINK_JDBC_SINK_PARALLELISM}'
 );
 
 -- =============================================

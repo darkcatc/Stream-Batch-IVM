@@ -14,6 +14,56 @@ from decimal import Decimal
 import threading
 import argparse
 import json
+import os
+import sys
+from pathlib import Path
+
+# 加载配置
+def load_db_config():
+    """加载数据库配置"""
+    # 添加config目录到Python路径
+    config_dir = Path(__file__).parent.parent / "config"
+    sys.path.append(str(config_dir))
+    
+    try:
+        from config_loader import ConfigLoader
+        loader = ConfigLoader()
+        mysql_config = loader.get_connection_params('mysql')
+        app_config = loader.load_all_configs()
+        
+        return {
+            'db': {
+                'host': mysql_config.get('host', 'localhost'),
+                'port': int(mysql_config.get('port', 3306)),
+                'user': mysql_config.get('username', 'flink_cdc'),
+                'password': mysql_config.get('password', 'flink_cdc123'),
+                'database': mysql_config.get('database', 'business_db')
+            },
+            'generator': {
+                'batch_size': int(app_config.get('DATA_GENERATOR_BATCH_SIZE', 1000)),
+                'interval': int(app_config.get('DATA_GENERATOR_INTERVAL', 5)),
+                'max_records': int(app_config.get('DATA_GENERATOR_MAX_RECORDS', 0)),
+                'threads': int(app_config.get('DATA_GENERATOR_THREADS', 2))
+            }
+        }
+    except ImportError:
+        # 如果配置加载器不可用，使用环境变量或默认配置
+        print("警告：无法加载配置文件，使用环境变量或默认配置")
+        return {
+            'db': {
+                'host': os.getenv('MYSQL_HOST', 'localhost'),
+                'port': int(os.getenv('MYSQL_PORT', 3306)),
+                'user': os.getenv('MYSQL_CDC_USER', 'flink_cdc'),
+                'password': os.getenv('MYSQL_CDC_PASSWORD', 'flink_cdc123'),
+                'database': os.getenv('MYSQL_DATABASE', 'business_db')
+            },
+            'generator': {
+                'batch_size': int(os.getenv('DATA_GENERATOR_BATCH_SIZE', 1000)),
+                'interval': int(os.getenv('DATA_GENERATOR_INTERVAL', 5)),
+                'max_records': int(os.getenv('DATA_GENERATOR_MAX_RECORDS', 0)),
+                'threads': int(os.getenv('DATA_GENERATOR_THREADS', 2))
+            }
+        }
 
 class TPCDSDataGenerator:
     def __init__(self, host='localhost', port=3306, user='root', password='root123', database='business_db'):

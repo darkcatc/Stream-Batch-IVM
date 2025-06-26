@@ -1,0 +1,178 @@
+# =============================================
+# Python 虚拟环境和依赖
+# =============================================
+
+# 虚拟环境目录
+venv/
+env/
+.venv/
+.env/
+
+# Python 编译文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Python 分发/打包
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# 单元测试
+.tox/
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# =============================================
+# IDE 和编辑器
+# =============================================
+
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# PyCharm
+.idea/
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+
+# =============================================
+# 操作系统
+# =============================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Linux
+*~
+.directory
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# =============================================
+# Docker 和容器化
+# =============================================
+
+# Docker 数据卷
+mysql_data/
+flink_data/
+flink_savepoints/
+
+# Docker Compose 覆盖文件
+docker-compose.override.yml
+
+# =============================================
+# 应用程序特定
+# =============================================
+
+# 日志文件
+*.log
+logs/
+
+# 配置文件中的敏感信息（如果有的话）
+.env.local
+.env.production
+.env.staging
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+
+# 数据文件
+*.csv
+*.json
+*.parquet
+data/
+
+# 下载的JAR包
+flink-lib/*.jar
+
+# 自动生成的脚本
+activate-env.sh
+
+# 备份文件
+*.bak
+*.backup
+
+# =============================================
+# Flink 相关
+# =============================================
+
+# Flink 检查点和保存点
+checkpoints/
+savepoints/
+
+# Flink 作业生成的文件
+.flink/
+
+# =============================================
+# 其他
+# =============================================
+
+# 压缩文件
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# 编译输出
+*.out 
