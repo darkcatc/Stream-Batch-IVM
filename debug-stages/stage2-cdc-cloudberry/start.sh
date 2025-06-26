@@ -52,25 +52,27 @@ fi
 echo "检查 Flink CDC 依赖包..."
 cd "$PROJECT_ROOT/flink-lib"
 
-FLINK_CDC_VERSION="3.0.1"
-MYSQL_CONNECTOR_VERSION="3.0.1"
+FLINK_CDC_VERSION="3.4.0"
+MYSQL_CONNECTOR_VERSION="8.0.33"
 
-if [ ! -f "flink-cdc-connectors-mysql-${MYSQL_CONNECTOR_VERSION}.jar" ]; then
-    echo "下载 Flink CDC MySQL 连接器..."
-    wget -O "flink-cdc-connectors-mysql-${MYSQL_CONNECTOR_VERSION}.jar" \
-        "https://repo1.maven.org/maven2/org/apache/flink/flink-connector-cdc-mysql/${MYSQL_CONNECTOR_VERSION}/flink-connector-cdc-mysql-${MYSQL_CONNECTOR_VERSION}.jar" || {
-        echo "错误: 无法下载 Flink CDC MySQL 连接器"
+if [ ! -f "flink-sql-connector-mysql-cdc-${FLINK_CDC_VERSION}.jar" ]; then
+    echo "下载 Flink SQL MySQL CDC 连接器..."
+    wget -O "flink-sql-connector-mysql-cdc-${FLINK_CDC_VERSION}.jar" \
+        "https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-mysql-cdc/${FLINK_CDC_VERSION}/flink-sql-connector-mysql-cdc-${FLINK_CDC_VERSION}.jar" || {
+        echo "错误: 无法下载 Flink SQL MySQL CDC 连接器"
         echo "请手动下载并放置到 flink-lib/ 目录"
+        echo "下载地址: https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-mysql-cdc/${FLINK_CDC_VERSION}/flink-sql-connector-mysql-cdc-${FLINK_CDC_VERSION}.jar"
         exit 1
     }
 fi
 
-if [ ! -f "mysql-connector-java-8.0.33.jar" ]; then
+if [ ! -f "mysql-connector-j-${MYSQL_CONNECTOR_VERSION}.jar" ]; then
     echo "下载 MySQL JDBC 驱动..."
-    wget -O "mysql-connector-java-8.0.33.jar" \
-        "https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.33/mysql-connector-java-8.0.33.jar" || {
+    wget -O "mysql-connector-j-${MYSQL_CONNECTOR_VERSION}.jar" \
+        "https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/${MYSQL_CONNECTOR_VERSION}/mysql-connector-j-${MYSQL_CONNECTOR_VERSION}.jar" || {
         echo "错误: 无法下载 MySQL JDBC 驱动"
         echo "请手动下载并放置到 flink-lib/ 目录"
+        echo "下载地址: https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/${MYSQL_CONNECTOR_VERSION}/mysql-connector-j-${MYSQL_CONNECTOR_VERSION}.jar"
         exit 1
     }
 fi
