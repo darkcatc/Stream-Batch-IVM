@@ -54,25 +54,81 @@ prepare_flink_libs() {
     mkdir -p ./flink-lib
     
     # 检查是否已存在必要的 JAR 文件
-    if [ ! -f "./flink-lib/flink-sql-connector-mysql-cdc-2.4.2.jar" ]; then
+    if [ ! -f "./flink-lib/flink-sql-connector-mysql-cdc-3.4.0.jar" ]; then
         log_warn "未找到 MySQL CDC 连接器，请手动下载："
-        echo "  wget -O ./flink-lib/flink-sql-connector-mysql-cdc-2.4.2.jar https://repo1.maven.org/maven2/com/ververica/flink-sql-connector-mysql-cdc/2.4.2/flink-sql-connector-mysql-cdc-2.4.2.jar"
+        echo "  wget -O ./flink-lib/flink-sql-connector-mysql-cdc-3.4.0.jar https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-mysql-cdc/3.4.0/flink-sql-connector-mysql-cdc-3.4.0.jar"
     fi
     
-    if [ ! -f "./flink-lib/flink-sql-connector-kafka-1.18.0.jar" ]; then
+    if [ ! -f "./flink-lib/flink-sql-connector-kafka-3.4.0-1.20.jar" ]; then
         log_warn "未找到 Kafka 连接器，请手动下载："
-        echo "  wget -O ./flink-lib/flink-sql-connector-kafka-1.18.0.jar https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka/1.18.0/flink-sql-connector-kafka-1.18.0.jar"
+        echo "  wget -O ./flink-lib/flink-sql-connector-kafka-3.4.0-1.20.jar https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.4.0-1.20/flink-sql-connector-kafka-3.4.0-1.20.jar"
     fi
     
-    if [ ! -f "./flink-lib/mysql-connector-java-8.0.33.jar" ]; then
+    if [ ! -f "./flink-lib/mysql-connector-j-8.0.33.jar" ]; then
         log_warn "未找到 MySQL JDBC 驱动，请手动下载："
-        echo "  wget -O ./flink-lib/mysql-connector-java-8.0.33.jar https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.33/mysql-connector-java-8.0.33.jar"
+        echo "  wget -O ./flink-lib/mysql-connector-j-8.0.33.jar https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/8.0.33/mysql-connector-j-8.0.33.jar"
     fi
     
     if [ ! -f "./flink-lib/postgresql-42.6.0.jar" ]; then
         log_warn "未找到 PostgreSQL JDBC 驱动（用于连接 Cloudberry），请手动下载："
         echo "  wget -O ./flink-lib/postgresql-42.6.0.jar https://repo1.maven.org/maven2/org/postgresql/postgresql/42.6.0/postgresql-42.6.0.jar"
     fi
+}
+
+# 设置环境变量
+set_environment_variables() {
+    log_info "设置环境变量..."
+    
+    # 导出所有必要的环境变量
+    export NETWORK_NAME=stream-batch-network
+    
+    # Zookeeper 配置
+    export ZOOKEEPER_HOST=zookeeper
+    export ZOOKEEPER_PORT=2181
+    export ZOOKEEPER_TICK_TIME=2000
+    
+    # Kafka 配置
+    export KAFKA_HOST=kafka
+    export KAFKA_INTERNAL_PORT=29092
+    export KAFKA_EXTERNAL_PORT=9092
+    export KAFKA_JMX_PORT=9101
+    export KAFKA_BROKER_ID=1
+    export KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+    export KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+    export KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+    export KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+    export KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    
+    # MySQL 配置
+    export MYSQL_HOST=mysql
+    export MYSQL_EXTERNAL_PORT=3306
+    export MYSQL_ROOT_PASSWORD=root123
+    export MYSQL_DATABASE=business_db
+    export MYSQL_CDC_USER=flink_cdc
+    export MYSQL_CDC_PASSWORD=flink_cdc123
+    
+    # Flink 配置
+    export FLINK_JOBMANAGER_HOST=flink-jobmanager
+    export FLINK_JOBMANAGER_WEB_PORT=8081
+    export FLINK_TASKMANAGER_SCALE=1
+    export FLINK_TASKMANAGER_SLOTS=4
+    export FLINK_PARALLELISM_DEFAULT=2
+    export FLINK_STATE_BACKEND=filesystem
+    export FLINK_CHECKPOINT_DIR=file:///tmp/flink-checkpoints
+    export FLINK_SAVEPOINT_DIR=file:///tmp/flink-savepoints
+    export FLINK_CHECKPOINT_INTERVAL=60000
+    export FLINK_CHECKPOINT_RETENTION=RETAIN_ON_CANCELLATION
+    
+    # AKHQ 配置
+    export AKHQ_HOST=akhq
+    export AKHQ_PORT=8080
+    
+    # Schema Registry 配置
+    export SCHEMA_REGISTRY_HOST=schema-registry
+    export SCHEMA_REGISTRY_PORT=8081
+    export SCHEMA_REGISTRY_EXTERNAL_PORT=8082
+    
+    log_info "环境变量设置完成 ✅"
 }
 
 # 启动 Docker 服务
@@ -235,6 +291,7 @@ main() {
     
     check_dependencies
     prepare_flink_libs
+    set_environment_variables
     start_services
     
     if wait_for_mysql && wait_for_flink; then

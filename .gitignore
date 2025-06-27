@@ -4,9 +4,6 @@
 
 # 虚拟环境目录
 venv/
-env/
-.venv/
-.env/
 
 # Python 编译文件
 __pycache__/
@@ -124,10 +121,7 @@ docker-compose.override.yml
 logs/
 
 # 配置文件中的敏感信息（如果有的话）
-.env.local
-.env.production
-.env.staging
-.env.generated
+
 
 # 临时文件
 tmp/

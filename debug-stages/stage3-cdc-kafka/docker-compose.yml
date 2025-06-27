@@ -1,0 +1,193 @@
+services:
+  # ========================
+  # MySQL 数据库服务 (继承阶段1-2)
+  # ========================
+  mysql:
+    image: mysql:8.0
+    hostname: mysql
+    container_name: mysql-stage3
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: business_db
+      TZ: Asia/Shanghai
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../../mysql-init:/docker-entrypoint-initdb.d
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --binlog-row-image=FULL
+      --gtid-mode=ON
+      --enforce-gtid-consistency=ON
+      --server-id=1
+      --log-slave-updates=ON
+      --binlog-expire-logs-seconds=172800
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - stage3-network
+
+  # ========================
+  # Zookeeper 服务 (Kafka依赖)
+  # ========================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    hostname: zookeeper
+    container_name: zookeeper-stage3
+    restart: unless-stopped
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - stage3-network
+
+  # ========================
+  # Kafka 服务
+  # ========================
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    hostname: kafka
+    container_name: kafka-stage3
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    networks:
+      - stage3-network
+
+  # ========================
+  # AKHQ - Kafka 管理界面
+  # ========================
+  akhq:
+    image: tchiotludo/akhq:0.24.0
+    hostname: akhq
+    container_name: akhq-stage3
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            docker-kafka-server:
+              properties:
+                bootstrap.servers: "kafka:29092"
+    networks:
+      - stage3-network
+
+  # ========================
+  # Flink JobManager (继承阶段2配置)
+  # ========================
+  flink-jobmanager:
+    image: flink:1.20.1
+    hostname: flink-jobmanager
+    container_name: flink-jobmanager-stage3
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+      - "6123:6123"
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        parallelism.default: 2
+        jobmanager.execution.failover-strategy: region
+        taskmanager.memory.process.size: 2gb
+        taskmanager.memory.flink.size: 1536m
+        state.backend: rocksdb
+        state.checkpoints.dir: file:///tmp/flink-checkpoints
+        state.savepoints.dir: file:///tmp/flink-savepoints
+        execution.checkpointing.interval: 60000
+        execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+    command: jobmanager
+    volumes:
+      - flink_data:/tmp
+      - ../../flink-lib:/opt/flink/lib/custom
+      - ./password-fixed-stage3-cdc.sql:/tmp/password-fixed-stage3-cdc.sql
+      - ./start-kafka-job.sql:/tmp/start-kafka-job.sql
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - stage3-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  # ========================
+  # Flink TaskManager (继承阶段2配置)
+  # ========================
+  flink-taskmanager:
+    image: flink:1.20.1
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        parallelism.default: 2
+        taskmanager.memory.process.size: 2gb
+        taskmanager.memory.flink.size: 1536m
+        state.backend: rocksdb
+    command: taskmanager
+    volumes:
+      - flink_data:/tmp
+      - ../../flink-lib:/opt/flink/lib/custom
+    networks:
+      - stage3-network
+    depends_on:
+      - flink-jobmanager
+
+networks:
+  stage3-network:
+    name: stream-batch-network-stage3
+    driver: bridge
+
+volumes:
+  mysql_data:
+    name: mysql-data-stage3
+  flink_data:
+    name: flink-data-stage3 
