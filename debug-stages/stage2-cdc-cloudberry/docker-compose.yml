@@ -41,7 +41,7 @@ services:
   # Flink JobManager
   # ========================
   flink-jobmanager:
-    image: flink:1.18
+    image: flink:1.20.1
     hostname: flink-jobmanager
     container_name: flink-jobmanager-stage2
     restart: unless-stopped
@@ -82,7 +82,7 @@ services:
   # Flink TaskManager
   # ========================
   flink-taskmanager:
-    image: flink:1.18
+    image: flink:1.20.1
     restart: unless-stopped
     deploy:
       replicas: 2
