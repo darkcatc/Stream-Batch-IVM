@@ -9,6 +9,7 @@ services:
     ports:
       - "${ZOOKEEPER_PORT}:2181"
     environment:
+      TZ: ${TZ}
       ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_PORT}
       ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME}
     networks:
@@ -28,6 +29,7 @@ services:
       - "${KAFKA_EXTERNAL_PORT}:9092"
       - "${KAFKA_JMX_PORT}:9101"
     environment:
+      TZ: ${TZ}
       KAFKA_BROKER_ID: ${KAFKA_BROKER_ID}
       KAFKA_ZOOKEEPER_CONNECT: '${ZOOKEEPER_HOST}:${ZOOKEEPER_PORT}'
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
@@ -53,6 +55,7 @@ services:
     ports:
       - "${MYSQL_EXTERNAL_PORT}:3306"
     environment:
+      TZ: ${TZ}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_CDC_USER}
@@ -69,6 +72,7 @@ services:
       - --binlog-do-db=${MYSQL_DATABASE}
       - --gtid-mode=on
       - --enforce-gtid-consistency=on
+      - --default-time-zone=${TZ}
     networks:
       - ${NETWORK_NAME}
     restart: unless-stopped
@@ -85,7 +89,7 @@ services:
       - "${FLINK_JOBMANAGER_WEB_PORT}:8081"
     command: jobmanager
     environment:
-      - TZ=Asia/Shanghai
+      - TZ=${TZ}
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: ${FLINK_JOBMANAGER_HOST}
@@ -96,6 +100,7 @@ services:
         state.savepoints.dir: ${FLINK_SAVEPOINT_DIR}
         execution.checkpointing.interval: ${FLINK_CHECKPOINT_INTERVAL}
         execution.checkpointing.externalized-checkpoint-retention: ${FLINK_CHECKPOINT_RETENTION}
+        table.local-time-zone: ${FLINK_TIMEZONE}
     volumes:
       - flink_data:/tmp/flink-checkpoints
       - flink_savepoints:/tmp/flink-savepoints
@@ -114,7 +119,7 @@ services:
     command: taskmanager
     scale: ${FLINK_TASKMANAGER_SCALE}
     environment:
-      - TZ=Asia/Shanghai
+      - TZ=${TZ}
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: ${FLINK_JOBMANAGER_HOST}
@@ -123,6 +128,7 @@ services:
         state.backend: ${FLINK_STATE_BACKEND}
         taskmanager.memory.process.size: 2gb
         taskmanager.memory.flink.size: 1536m
+        table.local-time-zone: ${FLINK_TIMEZONE}
     volumes:
       - ./flink-lib:/opt/flink/lib/custom
     networks:
@@ -141,6 +147,7 @@ services:
     ports:
       - "${AKHQ_PORT}:8080"
     environment:
+      TZ: ${TZ}
       AKHQ_CONFIGURATION: |
         akhq:
           connections:
@@ -165,6 +172,7 @@ services:
     ports:
       - "${SCHEMA_REGISTRY_EXTERNAL_PORT}:8081"
     environment:
+      TZ: ${TZ}
       SCHEMA_REGISTRY_HOST_NAME: ${SCHEMA_REGISTRY_HOST}
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: '${KAFKA_HOST}:${KAFKA_INTERNAL_PORT}'
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:${SCHEMA_REGISTRY_PORT}
@@ -178,6 +186,8 @@ services:
   flink-cdc-init:
     image: alpine:latest
     container_name: flink-cdc-init
+    environment:
+      TZ: ${TZ}
     volumes:
       - ./flink-lib:/flink-lib
     command: |

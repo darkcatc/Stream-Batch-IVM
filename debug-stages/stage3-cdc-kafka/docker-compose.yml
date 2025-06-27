@@ -10,9 +10,9 @@ services:
     ports:
       - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: root123
-      MYSQL_DATABASE: business_db
-      TZ: Asia/Shanghai
+      TZ: ${TZ:-Asia/Shanghai}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-business_db}
     volumes:
       - mysql_data:/var/lib/mysql
       - ../../mysql-init:/docker-entrypoint-initdb.d
@@ -28,8 +28,9 @@ services:
       --server-id=1
       --log-slave-updates=ON
       --binlog-expire-logs-seconds=172800
+      --default-time-zone=${TZ:-Asia/Shanghai}
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root123}"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -48,6 +49,7 @@ services:
     ports:
       - "2181:2181"
     environment:
+      TZ: ${TZ:-Asia/Shanghai}
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     networks:
@@ -67,6 +69,7 @@ services:
       - "9092:9092"
       - "9101:9101"
     environment:
+      TZ: ${TZ:-Asia/Shanghai}
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
@@ -101,6 +104,7 @@ services:
     ports:
       - "8080:8080"
     environment:
+      TZ: ${TZ:-Asia/Shanghai}
       AKHQ_CONFIGURATION: |
         akhq:
           connections:
@@ -122,6 +126,7 @@ services:
       - "8081:8081"
       - "6123:6123"
     environment:
+      - TZ=${TZ:-Asia/Shanghai}
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: flink-jobmanager
@@ -135,6 +140,7 @@ services:
         state.savepoints.dir: file:///tmp/flink-savepoints
         execution.checkpointing.interval: 60000
         execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+        table.local-time-zone: ${FLINK_TIMEZONE:-Asia/Shanghai}
     command: jobmanager
     volumes:
       - flink_data:/tmp
@@ -164,6 +170,7 @@ services:
     deploy:
       replicas: 2
     environment:
+      - TZ=${TZ:-Asia/Shanghai}
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: flink-jobmanager
@@ -172,6 +179,7 @@ services:
         taskmanager.memory.process.size: 2gb
         taskmanager.memory.flink.size: 1536m
         state.backend: rocksdb
+        table.local-time-zone: ${FLINK_TIMEZONE:-Asia/Shanghai}
     command: taskmanager
     volumes:
       - flink_data:/tmp
