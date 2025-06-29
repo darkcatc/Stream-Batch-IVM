@@ -116,6 +116,7 @@ pip install -r requirements.txt
 ```bash
 # 激活Python环境
 source venv/bin/activate
+pip3 install -r requirements.txt
 
 # 测试MySQL连接
 python scripts/test-connection.py
